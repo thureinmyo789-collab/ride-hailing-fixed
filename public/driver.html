@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driver Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css">
+  <style>
+    html,body,#map{height:100%;margin:0;font-family:sans-serif}.info-box{position:absolute;top:10px;right:10px;z-index:1000;background:#fff;padding:10px;border-radius:6px;box-shadow:0 2px 6px #777;max-width:80vw}.finish-btn{display:none;margin-top:8px;padding:8px 12px;background:#dc3545;color:white;border:0;border-radius:4px}.leaflet-routing-container{display:none!important}
+  </style>
+</head>
+<body>
+  <div class="info-box"><h3>Driver Dashboard</h3><p id="status">ယာဉ်မောင်းဝင်ရောက်မှု စစ်ဆေးနေသည်...</p>
+    <p>ဖုန်း: <b id="passenger-phone">-</b></p><p>အမည်: <b id="passenger-name">-</b></p>
+    <button id="accept-btn" onclick="acceptRideNow()" style="display:none">ခရီးစဉ် လက်ခံမည်</button>
+    <button id="finish-ride-btn" class="finish-btn" onclick="finishRide()">ခရီးစဉ် ပြီးဆုံးပြီ</button>
+  </div>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const map=L.map('map').setView([21.9833,100.0833],14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+    const socket=io();
+    const statusEl=document.getElementById('status');
+    const phoneEl=document.getElementById('passenger-phone');
+    const nameEl=document.getElementById('passenger-name');
+    const acceptBtn=document.getElementById('accept-btn');
+    const finishBtn=document.getElementById('finish-ride-btn');
+    const ringtone=new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); ringtone.loop=true;
+    const redIcon=L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34]});
+    const greenIcon=L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',iconSize:[25,41],iconAnchor:[12,41],popupAnchor:[1,-34]});
+    let driverPhone=null, driverLat=null, driverLng=null, watchId=null, passenger=null, passengerMarker=null, destinationMarker=null, driverMarker=null, routingControl=null, arrivedAlerted=false;
+
+    async function verifyDriverAccess(){
+      const phone=prompt('ယာဉ်မောင်းဖုန်းနံပါတ် ထည့်ပါ:');
+      if(!phone){document.body.innerHTML='<h2>ဝင်ရောက်ခွင့် မရှိပါ။</h2>';return;}
+      try{
+        const response=await fetch('/api/drivers'); if(!response.ok) throw new Error('drivers api failed');
+        const drivers=await response.json(); const found=drivers.find(d=>String(d.phone)===phone.trim());
+        if(!found){alert('ဤဖုန်းနံပါတ်ဖြင့် မှတ်ပုံတင်ထားခြင်း မရှိပါ။');document.body.innerHTML='<h2 style="color:red;text-align:center">Access denied</h2>';return;}
+        driverPhone=found.phone; localStorage.setItem('driverPhone',found.phone); localStorage.setItem('driverName',found.name);
+        socket.emit('driverOnline',{phone:found.phone}); statusEl.textContent='Online ဖြစ်ပါသည်။ ခရီးသည်ကို စောင့်ဆိုင်းနေသည်။';
+        startGPS();
+      }catch(e){console.error(e);alert('ဆာဗာနှင့် ချိတ်ဆက်မရပါ။ Server ကို စစ်ဆေးပါ။');}
+    }
+    function startGPS(){
+      if(!navigator.geolocation){statusEl.textContent='ဤ browser တွင် GPS မရပါ။';return;}
+      watchId=navigator.geolocation.watchPosition(pos=>{
+        driverLat=pos.coords.latitude;driverLng=pos.coords.longitude;
+        if(!driverMarker) driverMarker=L.marker([driverLat,driverLng],{icon:redIcon}).addTo(map).bindPopup('သင့်တည်နေရာ (ယာဉ်မောင်း)'); else driverMarker.setLatLng([driverLat,driverLng]);
+        if(!passenger) map.setView([driverLat,driverLng],15);
+        if(passenger){
+          socket.emit('driverLocationUpdate',{passengerId:passenger.passengerId,lat:driverLat,lng:driverLng});
+          if(routingControl) routingControl.setWaypoints(makeWaypoints());
+          const distance=map.distance([driverLat,driverLng],[passenger.lat,passenger.lng]);
+          if(distance<100&&!arrivedAlerted){arrivedAlerted=true;statusEl.textContent='ခရီးသည်ထံ ရောက်ရှိပါပြီ။';socket.emit('driverArrived',{passengerId:passenger.passengerId});speak('ကားဆရာ ရောက်ရှိပါပြီ');}
+        }
+      },err=>{console.error('GPS:',err.message);statusEl.textContent='GPS ခွင့်ပြုချက်/တည်နေရာကို စစ်ဆေးပါ။';},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+    }
+    function speak(text){if('speechSynthesis'in window){const u=new SpeechSynthesisUtterance(text);u.lang='my-MM';speechSynthesis.speak(u);}}
+    function makeWaypoints(){const w=[];if(driverLat!=null&&driverLng!=null)w.push(L.latLng(driverLat,driverLng));if(passenger)w.push(L.latLng(passenger.lat,passenger.lng));if(passenger&&passenger.destLat!=null&&passenger.destLng!=null)w.push(L.latLng(passenger.destLat,passenger.destLng));return w;}
+    socket.on('passengerRequestRide',data=>{
+      passenger={...data};arrivedAlerted=false;phoneEl.textContent=data.passengerPhone||'N/A';nameEl.textContent=data.passengerName||'ခရီးသည်';
+      if(passengerMarker)map.removeLayer(passengerMarker);if(destinationMarker)map.removeLayer(destinationMarker);
+      passengerMarker=L.marker([data.lat,data.lng]).addTo(map).bindPopup('ခရီးသည်: '+(data.passengerName||'ခရီးသည်')).openPopup();
+      if(data.destLat!=null&&data.destLng!=null)destinationMarker=L.marker([data.destLat,data.destLng],{icon:greenIcon}).addTo(map).bindPopup('သွားမည့်နေရာ');
+      map.setView([data.lat,data.lng],15);acceptBtn.style.display='inline-block';finishBtn.style.display='none';statusEl.textContent='ခရီးသည်က ကားခေါ်ထားပါသည်။';
+      ringtone.currentTime=0;ringtone.play().catch(()=>{});
+    });
+    socket.on('liveLocationUpdate',data=>{
+      if(!data||!Number.isFinite(Number(data.lat))||!Number.isFinite(Number(data.lng)))return;
+      if(!passenger||passenger.passengerId!==data.passengerId)return;
+      passenger.lat=Number(data.lat);passenger.lng=Number(data.lng);
+      if(passengerMarker)passengerMarker.setLatLng([passenger.lat,passenger.lng]);
+      if(data.destLat!=null&&data.destLng!=null){passenger.destLat=Number(data.destLat);passenger.destLng=Number(data.destLng);if(destinationMarker)destinationMarker.setLatLng([passenger.destLat,passenger.destLng]);}
+      if(routingControl)routingControl.setWaypoints(makeWaypoints());
+    });
+    window.acceptRideNow=function(){if(!passenger)return;ringtone.pause();ringtone.currentTime=0;acceptBtn.style.display='none';finishBtn.style.display='inline-block';statusEl.textContent='ခရီးစဉ် လက်ခံထားပါသည်။';socket.emit('acceptRide',{passengerId:passenger.passengerId,driverLat,driverLng});if(routingControl)map.removeControl(routingControl);const waypoints=makeWaypoints();if(waypoints.length>=2)routingControl=L.Routing.control({waypoints,addWaypoints:false,draggableWaypoints:false,routeWhileDragging:false,show:false,createMarker:()=>null}).addTo(map);};
+    window.finishRide=function(){if(!passenger)return;socket.emit('finishRide',{passengerId:passenger.passengerId});if(passengerMarker)map.removeLayer(passengerMarker);if(destinationMarker)map.removeLayer(destinationMarker);if(routingControl){map.removeControl(routingControl);routingControl=null;}passenger=null;passengerMarker=null;destinationMarker=null;acceptBtn.style.display='none';finishBtn.style.display='none';phoneEl.textContent='-';nameEl.textContent='-';statusEl.textContent='ခရီးစဉ် ပြီးဆုံးပါပြီ။';};
+    socket.on('rideRequestFailed',data=>alert(data.message||'ခေါ်ဆိုမှု မအောင်မြင်ပါ။'));
+    socket.on('disconnect',()=>{statusEl.textContent='Server နှင့် ချိတ်ဆက်မှု ပြတ်တောက်နေသည်။';});
+    verifyDriverAccess();
+  </script>
+</body>
+</html>

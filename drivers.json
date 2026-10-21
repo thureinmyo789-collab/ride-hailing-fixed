@@ -1,0 +1,18 @@
+[
+  {
+    "name": "မောင်သူရိန်မျိုး",
+    "phone": "09405005672",
+    "car": "Toyota Alphard (SHAN38-7890)",
+    "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100",
+    "passcode": "123456",
+    "approved": true
+  },
+  {
+    "name": "ကိုစိုးမိုး",
+    "phone": "09987654321",
+    "car": "Toyota Crown (ခ-၅၆၇၈)",
+    "image": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100",
+    "passcode": "123456",
+    "approved": true
+  }
+]
