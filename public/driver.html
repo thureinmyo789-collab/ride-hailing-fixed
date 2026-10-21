@@ -21,11 +21,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const map=L.map('map').setView([21.9833,100.0833],14);
-    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    attribution: '© Google'
-}).addTo(map);
-
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
     const socket=io();
     const statusEl=document.getElementById('status');
     const phoneEl=document.getElementById('passenger-phone');
@@ -73,47 +69,14 @@
       map.setView([data.lat,data.lng],15);acceptBtn.style.display='inline-block';finishBtn.style.display='none';statusEl.textContent='ခရီးသည်က ကားခေါ်ထားပါသည်။';
       ringtone.currentTime=0;ringtone.play().catch(()=>{});
     });
-   // Socket.io ချိတ်ဆက်ခြင်း
-const socket = io();
-
-// ယာဉ်မောင်းဘက်တွင် Map စတင်ခြင်း
-const map = L.map('map').setView([21.9833, 100.0833], 14);
-L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    attribution: '© Google'
-}).addTo(map);
-
-let passengerMarker = null;
-
-// ယာဉ်မောင်း၏ GPS တည်နေရာကို Real-time ရယူပြီး ဆာဗာသို့ ပို့ခြင်း
-if (navigator.geolocation) {
-    navigator.geolocation.watchPosition((position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-
-        // ဆာဗာဆီသို့ ယာဉ်မောင်း၏ lat, lng ကို ပို့ပေးသည်
-        socket.emit('driverLocationUpdate', { lat, lng });
-    }, (error) => {
-        console.error("GPS Error: ", error);
-    }, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 5000
+    socket.on('liveLocationUpdate',data=>{
+      if(!data||!Number.isFinite(Number(data.lat))||!Number.isFinite(Number(data.lng)))return;
+      if(!passenger||passenger.passengerId!==data.passengerId)return;
+      passenger.lat=Number(data.lat);passenger.lng=Number(data.lng);
+      if(passengerMarker)passengerMarker.setLatLng([passenger.lat,passenger.lng]);
+      if(data.destLat!=null&&data.destLng!=null){passenger.destLat=Number(data.destLat);passenger.destLng=Number(data.destLng);if(destinationMarker)destinationMarker.setLatLng([passenger.destLat,passenger.destLng]);}
+      if(routingControl)routingControl.setWaypoints(makeWaypoints());
     });
-}
-
-// ခရီးသည်ဘက်မှ ပို့လာသော တည်နေရာကို ယာဉ်မောင်းဘက်တွင် Marker ဖြင့် Real-time ပြသရန်
-socket.on('passengerLocationUpdate', (data) => {
-    if (data && data.lat && data.lng) {
-        const latLng = [data.lat, data.lng];
-        if (!passengerMarker) {
-            passengerMarker = L.marker(latLng).addTo(map).bindPopup("ခရီးသည် တည်နေရာ");
-        } else {
-            // တည်နေရာပြောင်းလဲသည့်အခါ Marker ကို တိကျစွာ ရွေ့လျားပြသသည် (Real-time update)
-            passengerMarker.setLatLng(latLng);
-        }
-    }
-}); 
     window.acceptRideNow=function(){if(!passenger)return;ringtone.pause();ringtone.currentTime=0;acceptBtn.style.display='none';finishBtn.style.display='inline-block';statusEl.textContent='ခရီးစဉ် လက်ခံထားပါသည်။';socket.emit('acceptRide',{passengerId:passenger.passengerId,driverLat,driverLng});if(routingControl)map.removeControl(routingControl);const waypoints=makeWaypoints();if(waypoints.length>=2)routingControl=L.Routing.control({waypoints,addWaypoints:false,draggableWaypoints:false,routeWhileDragging:false,show:false,createMarker:()=>null}).addTo(map);};
     window.finishRide=function(){if(!passenger)return;socket.emit('finishRide',{passengerId:passenger.passengerId});if(passengerMarker)map.removeLayer(passengerMarker);if(destinationMarker)map.removeLayer(destinationMarker);if(routingControl){map.removeControl(routingControl);routingControl=null;}passenger=null;passengerMarker=null;destinationMarker=null;acceptBtn.style.display='none';finishBtn.style.display='none';phoneEl.textContent='-';nameEl.textContent='-';statusEl.textContent='ခရီးစဉ် ပြီးဆုံးပါပြီ။';};
     socket.on('rideRequestFailed',data=>alert(data.message||'ခေါ်ဆိုမှု မအောင်မြင်ပါ။'));

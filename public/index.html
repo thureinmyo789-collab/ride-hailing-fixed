@@ -20,56 +20,29 @@
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="/socket.io/socket.io.js"></script>
   <script>
-// Socket.io ချိတ်ဆက်ခြင်း
-const socket = io();
-
-// ခရီးသည်ဘက်တွင် Map စတင်ခြင်း
-const map = L.map('map').setView([21.9833, 100.0833], 14);
-L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    attribution: '© Google'
-}).addTo(map);
-
-let driverMarker = null;
-let myMarker = null;
-
-// ခရီးသည်၏ GPS တည်နေရာကို ရယူပြီး ဆာဗာသို့ ပို့ခြင်းနှင့် ကိုယ့် Marker ကိုပြသခြင်း
-if (navigator.geolocation) {
-    navigator.geolocation.watchPosition((position) => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        const latLng = [lat, lng];
-
-        if (!myMarker) {
-            myMarker = L.marker(latLng).addTo(map).bindPopup("သင်၏ တည်နေရာ");
-        } else {
-            myMarker.setLatLng(latLng);
-        }
-
-        // ဆာဗာဆီသို့ ခရီးသည်၏ lat, lng ကို ပို့ပေးသည်
-        socket.emit('passengerLocationUpdate', { lat, lng });
-    }, (error) => {
-        console.error("GPS Error: ", error);
-    }, {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 5000
-    });
-}
-
-// ယာဉ်မောင်းဘက်မှ ရွေ့လျားလာသော တည်နေရာကို ခရီးသည်ဘက်တွင် Real-time ဖြင့် Marker ရွေ့ပြရန်
-socket.on('driverLocationUpdate', (data) => {
-    if (data && data.lat && data.lng) {
-        const latLng = [data.lat, data.lng];
-        if (!driverMarker) {
-            driverMarker = L.marker(latLng).addTo(map).bindPopup("ယာဉ်မောင်း တည်နေရာ");
-        } else {
-            // ယာဉ်မောင်းရွေ့လျားမှုကို Map ပေါ်တွင် တိကျချောမွေ့စွာ Update လုပ်ပေးသည်
-            driverMarker.setLatLng(latLng);
-        }
-    }
-});
- 
- </script>
+    const map=L.map('map').setView([21.9833,100.0833],14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+    const socket=io();const $=id=>document.getElementById(id);
+    const redIcon=L.icon({iconUrl:'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',shadowUrl:'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',iconSize:[25,41],iconAnchor:[12,41]});
+    let currentLat=null,currentLng=null,destLat=null,destLng=null,myMarker=null,destMarker=null,driverMarker=null,watchId=null,isSharing=false,selectedDriverPhone=null;
+    let onlineDriversMap={};
+    $('passengerPhone').value=localStorage.getItem('passengerPhone')||'';
+    function getPassengerPhone(){const p=$('passengerPhone').value.trim();if(p)localStorage.setItem('passengerPhone',p);return p;}
+    function updateMyMarker(){if(currentLat==null||currentLng==null)return;if(!myMarker)myMarker=L.marker([currentLat,currentLng]).addTo(map).bindPopup('သင့်တည်နေရာ');else myMarker.setLatLng([currentLat,currentLng]);$('coords').textContent=`Lat: ${currentLat.toFixed(5)}, Lng: ${currentLng.toFixed(5)}`;}
+    function refreshLocation(){if(!navigator.geolocation){alert('ဒီ browser တွင် GPS မရပါ။');return;}navigator.geolocation.getCurrentPosition(pos=>{currentLat=pos.coords.latitude;currentLng=pos.coords.longitude;updateMyMarker();map.setView([currentLat,currentLng],16);$('status').textContent='အခြေအနေ: တည်နေရာ ရရှိပါပြီ။';},err=>alert('GPS ခွင့်ပြုချက်နှင့် Location ဖွင့်ထားခြင်းကို စစ်ဆေးပါ။ '+err.message),{enableHighAccuracy:true,timeout:15000});}
+    if(navigator.geolocation){watchId=navigator.geolocation.watchPosition(pos=>{currentLat=pos.coords.latitude;currentLng=pos.coords.longitude;updateMyMarker();if(isSharing)socket.emit('liveLocationUpdate',{lat:currentLat,lng:currentLng,destLat,destLng});},err=>console.warn('GPS:',err.message),{enableHighAccuracy:true,maximumAge:3000,timeout:15000});}
+    map.on('click',e=>{destLat=e.latlng.lat;destLng=e.latlng.lng;if(!destMarker)destMarker=L.marker([destLat,destLng],{draggable:true}).addTo(map).bindPopup('သွားမည့်နေရာ').openPopup();else destMarker.setLatLng([destLat,destLng]);destMarker.off('dragend').on('dragend',ev=>{destLat=ev.target.getLatLng().lat;destLng=ev.target.getLatLng().lng;});});
+    async function searchDestination(){const q=$('destinationInput').value.trim();if(!q)return alert('သွားမည့်နေရာကို ရိုက်ထည့်ပါ။');try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&q='+encodeURIComponent(q));const data=await r.json();if(!data.length)return alert('နေရာမတွေ့ပါ။');destLat=Number(data[0].lat);destLng=Number(data[0].lon);if(!destMarker)destMarker=L.marker([destLat,destLng],{draggable:true}).addTo(map);destMarker.setLatLng([destLat,destLng]).bindPopup(data[0].display_name).openPopup();destMarker.off('dragend').on('dragend',ev=>{destLat=ev.target.getLatLng().lat;destLng=ev.target.getLatLng().lng;});map.setView([destLat,destLng],15);}catch(e){console.error(e);alert('နေရာရှာမရပါ။ အင်တာနက်ကို စစ်ဆေးပါ။');}}
+    async function fetchDrivers(){try{const [onlineRes,driversRes]=await Promise.all([fetch('/api/online-drivers'),fetch('/api/drivers')]);if(!onlineRes.ok||!driversRes.ok)throw new Error('API error');onlineDriversMap=await onlineRes.json();const drivers=await driversRes.json();const list=$('driversList');list.innerHTML='<h3>ယာဉ်မောင်းရွေးချယ်ရန်</h3>';drivers.forEach(d=>{const isOnline=!!onlineDriversMap[d.phone];const card=document.createElement('div');card.className='driver-card';const img=document.createElement('img');img.src=d.image||'';img.alt='Driver';const info=document.createElement('div');info.className='driver-info';const dot=document.createElement('span');dot.className='status-dot '+(isOnline?'online':'offline');const name=document.createElement('b');name.textContent=d.name||'Driver';info.append(dot,name,document.createElement('br'));info.append('ဖုန်း: '+d.phone,document.createElement('br'),'ကား: '+(d.car||'မသတ်မှတ်ရသေးပါ'));const btn=document.createElement('button');btn.textContent=isOnline?'ခေါ်မည်':'Offline';btn.disabled=!isOnline;btn.style.background=isOnline?'#087cf0':'#888';btn.onclick=()=>selectDriver(d.phone,d.name);card.append(img,info,btn);list.append(card);});}catch(e){console.error(e);$('driversList').textContent='ယာဉ်မောင်းစာရင်း မရပါ။ Server ကို စစ်ဆေးပါ။';}}
+    function selectDriver(phone,name){const pPhone=getPassengerPhone();if(!pPhone)return alert('သင့်ဖုန်းနံပါတ်ကို အရင်ထည့်ပါ။');if(currentLat==null||currentLng==null)return alert('မိမိတည်နေရာ မရသေးပါ။ GPS ဖွင့်ပြီး ပြန်ကြိုးစားပါ။');if(!onlineDriversMap[phone])return alert('ယာဉ်မောင်း Offline ဖြစ်နေပါသည်။');selectedDriverPhone=phone;isSharing=true;$('status').textContent='အခြေအနေ: '+name+' ထံ ခေါ်ဆိုနေပါသည်။';$('passenger-status').textContent='ခေါ်ဆိုမှု ပို့နေပါသည်။';socket.emit('passengerRequestRide',{lat:currentLat,lng:currentLng,destLat,destLng,passengerPhone:pPhone,passengerName:'ခရီးသည်',targetDriverPhone:phone});}
+    socket.on('updateDriverStatus',()=>fetchDrivers());socket.on('connect',fetchDrivers);socket.on('rideRequestFailed',d=>{$('passenger-status').textContent=d.message||'ခေါ်ဆိုမှု မအောင်မြင်ပါ။';});
+    socket.on('rideAccepted',data=>{$('passenger-status').textContent=data.message||'ယာဉ်မောင်းက ခရီးစဉ်ကို လက်ခံလိုက်ပါပြီ။';if(data.driverLat!=null&&data.driverLng!=null)updateDriverMarker(data.driverLat,data.driverLng);});
+    function updateDriverMarker(lat,lng){if(!driverMarker)driverMarker=L.marker([lat,lng],{icon:redIcon}).addTo(map).bindPopup('ယာဉ်မောင်း လာနေပါပြီ').openPopup();else driverMarker.setLatLng([lat,lng]);}
+    socket.on('driverLocationUpdate',data=>{if(data&&data.lat!=null&&data.lng!=null)updateDriverMarker(data.lat,data.lng);});
+    socket.on('driverArrived',()=>{$('passenger-status').textContent='ကားဆရာ ရောက်ရှိပါပြီ။';});
+    function clearDriverMarker(){if(driverMarker){map.removeLayer(driverMarker);driverMarker=null;}}
+    socket.on('rideFinished',()=>{isSharing=false;clearDriverMarker();$('passenger-status').textContent='ခရီးစဉ် ပြီးဆုံးပါပြီ။ ကျေးဇူးတင်ပါသည်။';$('status').textContent='အခြေအနေ: ခရီးစဉ် ပြီးဆုံးပါပြီ။';selectedDriverPhone=null;});
+    fetchDrivers();
+  </script>
 </body>
 </html>
