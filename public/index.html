@@ -13,46 +13,49 @@
     }
     .panel {
         position: absolute;
-        top: 15px;
-        left: 15px;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 1000;
         background: linear-gradient(135deg, #1e293b, #0f172a);
         color: #ffffff;
-        padding: 15px;
-        border-radius: 12px;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-        max-width: 300px;
-        width: calc(100% - 40px);
+        padding: 12px 15px;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        width: 90%;
+        max-width: 380px;
+        max-height: 45vh;
+        overflow-y: auto;
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .panel h3 {
-        margin: 0 0 10px 0;
-        font-size: 18px;
+        margin: 0 0 8px 0;
+        font-size: 16px;
         color: #38bdf8;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding-bottom: 6px;
+        padding-bottom: 4px;
     }
     .panel input.field {
         width: 100%;
-        padding: 8px 10px;
-        margin: 6px 0;
+        padding: 7px 10px;
+        margin: 4px 0;
         border: 1px solid #475569;
         background: #1e293b;
         color: #fff;
         border-radius: 6px;
         box-sizing: border-box;
-        font-size: 14px;
+        font-size: 13px;
     }
     .panel button {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         color: white;
         border: none;
-        padding: 8px 12px;
+        padding: 7px 10px;
         border-radius: 6px;
-        font-size: 14px;
+        font-size: 13px;
         cursor: pointer;
         width: 100%;
-        margin-top: 8px;
+        margin-top: 6px;
         font-weight: bold;
         box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
     }
@@ -60,11 +63,10 @@
         transform: scale(0.98);
     }
     .panel p, .panel div {
-        font-size: 13px;
+        font-size: 12px;
         color: #e2e8f0;
-        margin: 6px 0;
+        margin: 4px 0;
     }
-
 
   </style>
 </head>
