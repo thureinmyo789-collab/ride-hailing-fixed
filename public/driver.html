@@ -93,19 +93,29 @@ socket.emit('driverOnline',{phone:found.phone}); statusEl.textContent='Online �
 startGPS();
 }catch(e){console.error(e);alert('ဆာဗာနှင့် ချိတ်ဆက်မရပါ။ Server ကို စစ်ဆေးပါ။');}
 }
-function startGPS(){
-if(!navigator.geolocation){statusEl.textContent='ဤ browser တွင် GPS မရပါ။';return;}
-watchId=navigator.geolocation.watchPosition(pos=>{
-driverLat=pos.coords.latitude;driverLng=pos.coords.longitude;
-if(!driverMarker) driverMarker=L.marker([driverLat,driverLng],{icon:redIcon}).addTo(map).bindPopup('သင့်တည်နေရာ (ယာဉ်မောင်း)'); else driverMarker.setLatLng([driverLat,driverLng]);
-if(!passenger) map.setView([driverLat,driverLng],15);
-if(passenger){
-socket.emit('driverLocationUpdate',{passengerId:passenger.passengerId,lat:driverLat,lng:driverLng});
-if(routingControl) routingControl.setWaypoints(makeWaypoints());
-const distance=map.distance([driverLat,driverLng],[passenger.lat,passenger.lng]);
-if(distance<100&&!arrivedAlerted){arrivedAlerted=true;statusEl.textContent='ခရီးသည်ထံ ရောက်ရှိပါပြီ။';socket.emit('driverArrived',{passengerId:passenger.passengerId});speak('ကားဆရာ ရောက်ရှိပါပြီ');}
-}
-},err=>{console.error('GPS:',err.message);statusEl.textContent='GPS ခွင့်ပြုချက်/တည်နေရာကို စစ်ဆေးပါ။';},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+    function startGPS(){
+      if(!navigator.geolocation){statusEl.textContent='ဤ browser တွင် GPS မရပါ။';return;}
+      watchId=navigator.geolocation.watchPosition(pos=>{
+        driverLat=pos.coords.latitude;driverLng=pos.coords.longitude;
+        if(!driverMarker) driverMarker=L.marker([driverLat,driverLng],{icon:redIcon}).addTo(map).bindPopup('သင့်တည်နေရာ (ယာဉ်မောင်း)'); else driverMarker.setLatLng([driverLat,driverLng]);
+        
+        // ယာဉ်မောင်း တည်နေရာအလိုက် Screen ကို အလိုအလျောက် လိုက်ရွေ့စေရန် (Auto-pan)
+        if(passenger){
+          // ခရီးစဉ်လက်ခံထားစဉ် ယာဉ်မောင်းနှင့် ခရီးသည်ကို အလယ်ဗဟိုပြုပေးရန်
+          map.panTo([driverLat, driverLng]);
+        } else {
+          map.setView([driverLat,driverLng],15);
+        }
+
+        if(passenger){
+          socket.emit('driverLocationUpdate',{passengerId:passenger.passengerId,lat:driverLat,lng:driverLng});
+          if(routingControl) routingControl.setWaypoints(makeWaypoints());
+          const distance=map.distance([driverLat,driverLng],[passenger.lat,passenger.lng]);
+          if(distance<100&&!arrivedAlerted){arrivedAlerted=true;statusEl.textContent='ခရီးသည်ထံ ရောက်ရှိပါပြီ။';socket.emit('driverArrived',{passengerId:passenger.passengerId});speak('ကားဆရာ ရောက်ရှိပါပြီ');}
+        }
+      },err=>{console.error('GPS:',err.message);statusEl.textContent='GPS ခွင့်ပြုချက်/တည်နေရာကို စစ်ဆေးပါ။';},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+    }
+
 }
 function speak(text){if('speechSynthesis'in window){const u=new SpeechSynthesisUtterance(text);u.lang='my-MM';speechSynthesis.speak(u);}}
 function makeWaypoints(){const w=[];if(driverLat!=null&&driverLng!=null)w.push(L.latLng(driverLat,driverLng));if(passenger)w.push(L.latLng(passenger.lat,passenger.lng));if(passenger&&passenger.destLat!=null&&passenger.destLng!=null)w.push(L.latLng(passenger.destLat,passenger.destLng));return w;}
