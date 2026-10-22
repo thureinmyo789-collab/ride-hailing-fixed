@@ -21,7 +21,11 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const map=L.map('map').setView([21.9833,100.0833],14);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: '© Google'
+}).addTo(map);
+
     const socket=io();
     const statusEl=document.getElementById('status');
     const phoneEl=document.getElementById('passenger-phone');
