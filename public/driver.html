@@ -116,7 +116,6 @@ startGPS();
       },err=>{console.error('GPS:',err.message);statusEl.textContent='GPS ခွင့်ပြုချက်/တည်နေရာကို စစ်ဆေးပါ။';},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
     }
 
-}
 function speak(text){if('speechSynthesis'in window){const u=new SpeechSynthesisUtterance(text);u.lang='my-MM';speechSynthesis.speak(u);}}
 function makeWaypoints(){const w=[];if(driverLat!=null&&driverLng!=null)w.push(L.latLng(driverLat,driverLng));if(passenger)w.push(L.latLng(passenger.lat,passenger.lng));if(passenger&&passenger.destLat!=null&&passenger.destLng!=null)w.push(L.latLng(passenger.destLat,passenger.destLng));return w;}
 socket.on('passengerRequestRide',data=>{
