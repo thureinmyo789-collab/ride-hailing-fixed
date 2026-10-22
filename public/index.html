@@ -4,8 +4,8 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ခရီးသည် - ယာဉ်မောင်းခေါ်ယူရန်</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <style>
    
+   <style>
     html, body, #map {
         height: 100%;
         margin: 0;
@@ -13,49 +13,49 @@
     }
     .panel {
         position: absolute;
-        bottom: 20px;
+        bottom: 15px;
         left: 50%;
         transform: translateX(-50%);
         z-index: 1000;
         background: linear-gradient(135deg, #1e293b, #0f172a);
         color: #ffffff;
-        padding: 12px 15px;
+        padding: 12px;
         border-radius: 16px;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-        width: 90%;
-        max-width: 380px;
-        max-height: 45vh;
+        width: 92%;
+        max-width: 400px;
+        max-height: 40vh;
         overflow-y: auto;
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .panel h3 {
-        margin: 0 0 8px 0;
-        font-size: 16px;
+        margin: 0 0 6px 0;
+        font-size: 15px;
         color: #38bdf8;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         padding-bottom: 4px;
     }
     .panel input.field {
         width: 100%;
-        padding: 7px 10px;
+        padding: 6px 10px;
         margin: 4px 0;
         border: 1px solid #475569;
         background: #1e293b;
         color: #fff;
         border-radius: 6px;
         box-sizing: border-box;
-        font-size: 13px;
+        font-size: 12px;
     }
     .panel button {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         color: white;
         border: none;
-        padding: 7px 10px;
+        padding: 6px 10px;
         border-radius: 6px;
-        font-size: 13px;
+        font-size: 12px;
         cursor: pointer;
         width: 100%;
-        margin-top: 6px;
+        margin-top: 4px;
         font-weight: bold;
         box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
     }
@@ -67,6 +67,23 @@
         color: #e2e8f0;
         margin: 4px 0;
     }
+    /* ယာဉ်မောင်းစာရင်းပုံများကို သေးငယ်လှပစေရန် (Driver Card Styling) */
+    #driversList img {
+        width: 45px !important;
+        height: 45px !important;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 2px solid #38bdf8;
+    }
+    #driversList div {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 6px 10px;
+        margin-top: 6px;
+        border-radius: 8px;
+    }   
 
   </style>
 </head>
